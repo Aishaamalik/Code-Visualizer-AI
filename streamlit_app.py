@@ -1,6 +1,7 @@
 import os
 import time
 import json
+import base64
 from typing import Any, Dict, List, Optional
 
 import streamlit as st
@@ -12,6 +13,57 @@ from analyzer import analyze_code_with_llm, get_groq_api_key
 
 # ----- Environment & Config -----
 load_dotenv()
+
+
+# ----- Background Image Function -----
+def set_bg_with_overlay(img_path, overlay_rgba="rgba(0,0,0,0.45)"):
+	"""Set background image with overlay for better text readability"""
+	try:
+		with open(img_path, "rb") as f:
+			b64 = base64.b64encode(f.read()).decode()
+		st.markdown(
+			f"""
+			<style>
+			.stApp {{
+				background-image: linear-gradient({overlay_rgba}, {overlay_rgba}), url("data:image/png;base64,{b64}");
+				background-size: cover;
+				background-position: center;
+				background-attachment: fixed;
+				min-height: 100vh;
+			}}
+			.stApp .main .block-container {{
+				background: rgba(147, 51, 234, 0.1);
+				border-radius: 15px;
+				padding: 2rem;
+				margin-top: 2rem;
+				box-shadow: 0 8px 32px rgba(147, 51, 234, 0.3);
+				backdrop-filter: blur(10px);
+				border: 1px solid rgba(147, 51, 234, 0.3);
+			}}
+			</style>
+			""",
+			unsafe_allow_html=True
+		)
+		return True
+	except FileNotFoundError:
+		st.markdown("""
+		<style>
+		.stApp {
+			background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+			min-height: 100vh;
+		}
+		.stApp .main .block-container {
+			background: rgba(147, 51, 234, 0.1);
+			border-radius: 15px;
+			padding: 2rem;
+			margin-top: 2rem;
+			box-shadow: 0 8px 32px rgba(147, 51, 234, 0.3);
+			backdrop-filter: blur(10px);
+			border: 1px solid rgba(147, 51, 234, 0.3);
+		}
+		</style>
+		""", unsafe_allow_html=True)
+		return False
 
 
 # ----- Session State Initialization -----
@@ -88,7 +140,10 @@ st.set_page_config(
 	initial_sidebar_state="collapsed"
 )
 
-# Custom CSS for modern styling
+# Set background image
+bg_loaded = set_bg_with_overlay("pic.jpg", overlay_rgba="rgba(0,0,0,0.4)")
+
+# Custom CSS for modern styling with background image
 st.markdown("""
 <style>
 	/* Main container styling */
@@ -96,128 +151,181 @@ st.markdown("""
 		padding-top: 2rem;
 		padding-bottom: 2rem;
 		max-width: 1200px;
+		background: rgba(147, 51, 234, 0.1);
+		border-radius: 20px;
+		backdrop-filter: blur(20px);
+		box-shadow: 0 20px 40px rgba(147, 51, 234, 0.3);
+		border: 1px solid rgba(147, 51, 234, 0.3);
 	}
 	
 	/* Header styling */
 	.header-container {
-		background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+		background: rgba(147, 51, 234, 0.9);
+		backdrop-filter: blur(20px);
 		padding: 2rem;
-		border-radius: 15px;
+		border-radius: 20px;
 		margin-bottom: 2rem;
 		color: white;
 		text-align: center;
-		box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+		box-shadow: 0 10px 30px rgba(147, 51, 234, 0.4);
+		border: 1px solid rgba(147, 51, 234, 0.4);
 	}
 	
 	.header-title {
 		font-size: 2.5rem;
 		font-weight: 700;
 		margin-bottom: 0.5rem;
-		background: linear-gradient(45deg, #fff, #f0f0f0);
-		-webkit-background-clip: text;
-		-webkit-text-fill-color: transparent;
+		text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
 	}
 	
 	.header-subtitle {
 		font-size: 1.1rem;
-		opacity: 0.9;
+		opacity: 0.95;
 		margin-bottom: 0;
+		text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
 	}
 	
 	/* Card styling */
 	.card {
-		background: white;
+		background: rgba(147, 51, 234, 0.15);
+		backdrop-filter: blur(15px);
 		padding: 1.5rem;
-		border-radius: 12px;
-		box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-		border: 1px solid #e1e5e9;
+		border-radius: 15px;
+		box-shadow: 0 8px 25px rgba(147, 51, 234, 0.2);
+		border: 1px solid rgba(147, 51, 234, 0.3);
 		margin-bottom: 1rem;
 	}
 	
 	/* Control buttons styling */
 	.control-button {
-		background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+		background: rgba(147, 51, 234, 0.9);
+		backdrop-filter: blur(10px);
 		color: white;
-		border: none;
-		border-radius: 8px;
+		border: 1px solid rgba(147, 51, 234, 0.4);
+		border-radius: 10px;
 		padding: 0.5rem 1rem;
 		font-weight: 600;
 		transition: all 0.3s ease;
-		box-shadow: 0 2px 10px rgba(102, 126, 234, 0.3);
+		box-shadow: 0 4px 15px rgba(147, 51, 234, 0.4);
 	}
 	
 	.control-button:hover {
 		transform: translateY(-2px);
-		box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4);
+		box-shadow: 0 8px 25px rgba(147, 51, 234, 0.6);
+		background: rgba(147, 51, 234, 1);
 	}
 	
 	/* Progress bar styling */
 	.progress-container {
-		background: #f8f9fa;
-		border-radius: 10px;
+		background: rgba(147, 51, 234, 0.15);
+		backdrop-filter: blur(10px);
+		border-radius: 15px;
 		padding: 1rem;
 		margin: 1rem 0;
-		border: 1px solid #e9ecef;
+		border: 1px solid rgba(147, 51, 234, 0.3);
+		box-shadow: 0 4px 15px rgba(147, 51, 234, 0.2);
 	}
 	
 	/* Info panels styling */
 	.info-panel {
-		background: #f8f9fa;
-		border-radius: 10px;
+		background: rgba(147, 51, 234, 0.15);
+		backdrop-filter: blur(10px);
+		border-radius: 15px;
 		padding: 1.5rem;
-		border-left: 4px solid #667eea;
+		border-left: 4px solid rgba(147, 51, 234, 0.8);
 		margin: 1rem 0;
+		box-shadow: 0 4px 15px rgba(147, 51, 234, 0.2);
 	}
 	
 	.info-panel h3 {
-		color: #495057;
+		color: #8b5cf6;
 		margin-bottom: 1rem;
 		font-size: 1.2rem;
 	}
 	
 	/* Variable display styling */
 	.variable-item {
-		background: white;
+		background: rgba(147, 51, 234, 0.1);
+		backdrop-filter: blur(5px);
 		padding: 0.75rem;
-		border-radius: 8px;
-		border: 1px solid #e9ecef;
+		border-radius: 10px;
+		border: 1px solid rgba(147, 51, 234, 0.3);
 		margin: 0.5rem 0;
-		box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+		box-shadow: 0 2px 8px rgba(147, 51, 234, 0.2);
 	}
 	
 	/* Status indicators */
 	.status-playing {
-		background: linear-gradient(135deg, #56ab2f 0%, #a8e6cf 100%);
+		background: rgba(147, 51, 234, 0.9);
+		backdrop-filter: blur(10px);
 		color: white;
 		padding: 0.5rem 1rem;
 		border-radius: 20px;
 		font-weight: 600;
 		animation: pulse 2s infinite;
+		box-shadow: 0 4px 15px rgba(147, 51, 234, 0.4);
+		border: 1px solid rgba(255,255,255,0.2);
 	}
 	
 	@keyframes pulse {
-		0% { opacity: 1; }
-		50% { opacity: 0.7; }
-		100% { opacity: 1; }
+		0% { opacity: 1; transform: scale(1); }
+		50% { opacity: 0.8; transform: scale(1.02); }
+		100% { opacity: 1; transform: scale(1); }
 	}
 	
 	/* Code block styling */
 	.code-container {
-		background: #1e1e1e;
-		border-radius: 12px;
+		background: rgba(30, 30, 30, 0.95);
+		backdrop-filter: blur(10px);
+		border-radius: 15px;
 		padding: 1.5rem;
-		box-shadow: 0 8px 32px rgba(0,0,0,0.2);
-		border: 1px solid #333;
+		box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+		border: 1px solid rgba(255,255,255,0.1);
 	}
 	
 	/* Section headers */
 	.section-header {
 		font-size: 1.5rem;
 		font-weight: 600;
-		color: #495057;
+		color: #8b5cf6;
 		margin: 2rem 0 1rem 0;
-		border-bottom: 3px solid #667eea;
+		border-bottom: 3px solid rgba(147, 51, 234, 0.8);
 		padding-bottom: 0.5rem;
+		text-shadow: 1px 1px 2px rgba(147, 51, 234, 0.3);
+	}
+	
+	/* Streamlit component overrides for better contrast */
+	.stSelectbox > div > div {
+		background: rgba(147, 51, 234, 0.15);
+		backdrop-filter: blur(10px);
+		border-radius: 8px;
+		border: 1px solid rgba(147, 51, 234, 0.3);
+	}
+	
+	.stTextArea > div > div > textarea {
+		background: rgba(147, 51, 234, 0.1);
+		backdrop-filter: blur(10px);
+		border-radius: 8px;
+		border: 1px solid rgba(147, 51, 234, 0.3);
+	}
+	
+	.stButton > button {
+		background: rgba(147, 51, 234, 0.9);
+		backdrop-filter: blur(10px);
+		border: 1px solid rgba(147, 51, 234, 0.4);
+		border-radius: 10px;
+		box-shadow: 0 4px 15px rgba(147, 51, 234, 0.4);
+	}
+	
+	.stButton > button:hover {
+		background: rgba(147, 51, 234, 1);
+		transform: translateY(-1px);
+		box-shadow: 0 6px 20px rgba(147, 51, 234, 0.6);
+	}
+	
+	/* Progress bar override */
+	.stProgress > div > div > div > div {
+		background: rgba(147, 51, 234, 0.8);
 	}
 </style>
 """, unsafe_allow_html=True)
@@ -234,17 +342,23 @@ st.markdown("""
 api_key = get_groq_api_key()
 if api_key:
 	st.markdown("""
-	<div style="background: linear-gradient(135deg, #56ab2f 0%, #a8e6cf 100%); 
-	            color: white; padding: 0.75rem 1.5rem; border-radius: 10px; 
-	            margin-bottom: 1rem; text-align: center; font-weight: 600;">
+	<div style="background: rgba(147, 51, 234, 0.9); 
+	            backdrop-filter: blur(10px);
+	            color: white; padding: 0.75rem 1.5rem; border-radius: 15px; 
+	            margin-bottom: 1rem; text-align: center; font-weight: 600;
+	            box-shadow: 0 4px 15px rgba(147, 51, 234, 0.4);
+	            border: 1px solid rgba(255,255,255,0.2);">
 		✅ API Ready - Ready to analyze your code!
 	</div>
 	""", unsafe_allow_html=True)
 else:
 	st.markdown("""
-	<div style="background: linear-gradient(135deg, #ff6b6b 0%, #ffa8a8 100%); 
-	            color: white; padding: 0.75rem 1.5rem; border-radius: 10px; 
-	            margin-bottom: 1rem; text-align: center; font-weight: 600;">
+	<div style="background: rgba(255, 107, 107, 0.9); 
+	            backdrop-filter: blur(10px);
+	            color: white; padding: 0.75rem 1.5rem; border-radius: 15px; 
+	            margin-bottom: 1rem; text-align: center; font-weight: 600;
+	            box-shadow: 0 4px 15px rgba(255, 107, 107, 0.4);
+	            border: 1px solid rgba(255,255,255,0.2);">
 		⚠️ Set GROQ_API_KEY in .env or Streamlit secrets to enable analysis
 	</div>
 	""", unsafe_allow_html=True)
@@ -256,24 +370,16 @@ st.markdown('<h2 class="section-header">📝 Code Input</h2>', unsafe_allow_html
 col1, col2, col3 = st.columns([2, 1, 1])
 
 with col1:
-	st.session_state.language = st.selectbox(
+	# Normalize language selection and ensure a valid index
+	languages = ["python", "javascript", "cpp", "java", "csharp", "go", "rust", "ruby"]
+	current_language = (
+		st.session_state.language if st.session_state.language in languages else "python"
+	)
+st.session_state.language = st.selectbox(
 		"🔤 Programming Language",
-		options=["python", "javascript", "cpp", "java", "csharp", "go", "rust", "ruby"],
-		index=["python", "javascript", "cpp", "java", "csharp", "go", "rust", "ruby"].index(
-			st.session_state.language
-		)
-		if st.session_state.language in [
-			"python",
-			"javascript",
-			"cpp",
-			"java",
-			"csharp",
-			"go",
-			"rust",
-			"ruby",
-		]
-		else 0,
-		help="Select the programming language of your code"
+		options=languages,
+		index=languages.index(current_language),
+		help="Select the programming language of your code",
 	)
 
 with col2:
@@ -321,9 +427,12 @@ if analyze_clicked:
 			
 			# Success message with better styling
 			st.markdown("""
-			<div style="background: linear-gradient(135deg, #56ab2f 0%, #a8e6cf 100%); 
-			            color: white; padding: 1rem 1.5rem; border-radius: 10px; 
-			            margin: 1rem 0; text-align: center; font-weight: 600;">
+			<div style="background: rgba(147, 51, 234, 0.9); 
+			            backdrop-filter: blur(10px);
+			            color: white; padding: 1rem 1.5rem; border-radius: 15px; 
+			            margin: 1rem 0; text-align: center; font-weight: 600;
+			            box-shadow: 0 4px 15px rgba(147, 51, 234, 0.4);
+			            border: 1px solid rgba(255,255,255,0.2);">
 				🎉 Analysis Complete! Scroll down to see the visualization.
 			</div>
 			""", unsafe_allow_html=True)
@@ -335,9 +444,12 @@ if analyze_clicked:
 			
 			# Error message with better styling
 			st.markdown(f"""
-			<div style="background: linear-gradient(135deg, #ff6b6b 0%, #ffa8a8 100%); 
-			            color: white; padding: 1rem 1.5rem; border-radius: 10px; 
-			            margin: 1rem 0; text-align: center; font-weight: 600;">
+			<div style="background: rgba(255, 107, 107, 0.9); 
+			            backdrop-filter: blur(10px);
+			            color: white; padding: 1rem 1.5rem; border-radius: 15px; 
+			            margin: 1rem 0; text-align: center; font-weight: 600;
+			            box-shadow: 0 4px 15px rgba(255, 107, 107, 0.4);
+			            border: 1px solid rgba(255,255,255,0.2);">
 				❌ Analysis failed: {e}
 			</div>
 			""", unsafe_allow_html=True)
@@ -351,8 +463,8 @@ if st.session_state.analysis:
 	if summary:
 		st.markdown(f"""
 		<div class="card">
-			<h3 style="color: #495057; margin-bottom: 1rem;">📋 Code Summary</h3>
-			<p style="font-size: 1.1rem; line-height: 1.6; color: #6c757d;">{summary}</p>
+			<h3 style="color: #8b5cf6; margin-bottom: 1rem;">📋 Code Summary</h3>
+			<p style="font-size: 1.1rem; line-height: 1.6; color: #a78bfa;">{summary}</p>
 		</div>
 		""", unsafe_allow_html=True)
 
@@ -360,8 +472,8 @@ steps: List[Dict[str, Any]] = st.session_state.steps
 if not steps:
 	st.markdown("""
 	<div class="card" style="text-align: center; padding: 3rem;">
-		<h3 style="color: #6c757d; margin-bottom: 1rem;">🚀 Ready to Visualize!</h3>
-		<p style="font-size: 1.1rem; color: #6c757d;">Paste your code above and click "Analyze Code" to see step-by-step execution visualization.</p>
+		<h3 style="color: #8b5cf6; margin-bottom: 1rem;">🚀 Ready to Visualize!</h3>
+		<p style="font-size: 1.1rem; color: #a78bfa;">Paste your code above and click "Analyze Code" to see step-by-step execution visualization.</p>
 	</div>
 	""", unsafe_allow_html=True)
 else:
@@ -414,7 +526,7 @@ else:
 			st.session_state.current_step = total_steps - 1
 			st.session_state.playing = False
 			st.rerun()
-	
+
 	# Reset button
 	if st.button("🔄 Reset to Beginning", use_container_width=True, help="Reset to first step"):
 		st.session_state.current_step = 0
@@ -426,22 +538,28 @@ else:
 	# Status indicator
 	if st.session_state.playing:
 		st.markdown("""
-		<div class="status-playing" style="text-align: center; margin: 1rem 0;">
+		<div style="background: rgba(147, 51, 234, 0.9); 
+		            backdrop-filter: blur(10px);
+		            color: white; padding: 0.75rem 1.5rem; border-radius: 20px; 
+		            margin: 1rem 0; text-align: center; font-weight: 600;
+		            box-shadow: 0 4px 15px rgba(147, 51, 234, 0.4);
+		            border: 1px solid rgba(255,255,255,0.2);
+		            animation: pulse 2s infinite;">
 			🎬 Auto-playing - Steps advance every 3 seconds
 		</div>
 		""", unsafe_allow_html=True)
 
 	# Code Execution Display
-	st.markdown("""
-	<div class="card">
-		<h3 style="color: #495057; margin-bottom: 1rem; display: flex; align-items: center;">
-			📍 Code Execution
-			<span style="margin-left: auto; font-size: 0.9rem; color: #6c757d;">
-				Line {current_line if current_line else 'N/A'}
-			</span>
-		</h3>
-	</div>
-	""", unsafe_allow_html=True)
+		st.markdown("""
+		<div class="card">
+			<h3 style="color: #8b5cf6; margin-bottom: 1rem; display: flex; align-items: center;">
+				📍 Code Execution
+				<span style="margin-left: auto; font-size: 0.9rem; color: #a78bfa;">
+					Line {current_line if current_line else 'N/A'}
+				</span>
+			</h3>
+		</div>
+		""", unsafe_allow_html=True)
 	
 	st.markdown(
 		build_highlighted_code_block(st.session_state.code, current_line, st.session_state.language),
@@ -455,13 +573,13 @@ else:
 		# Step Details Card
 		st.markdown(f"""
 		<div class="card">
-			<h3 style="color: #495057; margin-bottom: 1rem;">🔧 Step {current_idx + 1} Details</h3>
+			<h3 style="color: #8b5cf6; margin-bottom: 1rem;">🔧 Step {current_idx + 1} Details</h3>
 			<div style="margin-bottom: 1rem;">
-				<strong style="color: #667eea;">Operation:</strong> {current.get('operation', 'Unknown')}
+				<strong style="color: #a855f7;">Operation:</strong> {current.get('operation', 'Unknown')}
 			</div>
 			<div style="margin-bottom: 1rem;">
-				<strong style="color: #667eea;">Explanation:</strong><br>
-				<span style="color: #6c757d;">{current.get('explanation', 'No explanation available')}</span>
+				<strong style="color: #a855f7;">Explanation:</strong><br>
+				<span style="color: #a78bfa;">{current.get('explanation', 'No explanation available')}</span>
 			</div>
 		</div>
 		""", unsafe_allow_html=True)
@@ -471,7 +589,7 @@ else:
 		if variables:
 			st.markdown("""
 			<div class="card">
-				<h3 style="color: #495057; margin-bottom: 1rem;">📊 Variables & Types</h3>
+				<h3 style="color: #8b5cf6; margin-bottom: 1rem;">📊 Variables & Types</h3>
 			""", unsafe_allow_html=True)
 			
 			for var_name, var_value in variables.items():
@@ -480,9 +598,9 @@ else:
 				var_type = variables.get(f"{var_name}_type", "unknown")
 				st.markdown(f"""
 				<div class="variable-item">
-					<strong style="color: #667eea;">{var_name}</strong>: 
-					<code style="background: #f8f9fa; padding: 0.2rem 0.4rem; border-radius: 4px;">{var_value}</code>
-					<span style="color: #6c757d; font-size: 0.9rem;">({var_type})</span>
+					<strong style="color: #a855f7;">{var_name}</strong>: 
+					<code style="background: rgba(147, 51, 234, 0.2); padding: 0.2rem 0.4rem; border-radius: 4px;">{var_value}</code>
+					<span style="color: #a78bfa; font-size: 0.9rem;">({var_type})</span>
 				</div>
 				""", unsafe_allow_html=True)
 			
@@ -492,26 +610,26 @@ else:
 		# Execution Context Card
 		st.markdown(f"""
 		<div class="card">
-			<h3 style="color: #495057; margin-bottom: 1rem;">📍 Execution Context</h3>
+			<h3 style="color: #8b5cf6; margin-bottom: 1rem;">📍 Execution Context</h3>
 			<div style="margin-bottom: 1rem;">
-				<strong style="color: #667eea;">Context:</strong><br>
-				<span style="color: #6c757d;">{current.get('execution_context', 'Main execution')}</span>
+				<strong style="color: #a855f7;">Context:</strong><br>
+				<span style="color: #a78bfa;">{current.get('execution_context', 'Main execution')}</span>
 			</div>
 		""", unsafe_allow_html=True)
 		
 		if current.get('control_flow'):
 			st.markdown(f"""
 			<div style="margin-bottom: 1rem;">
-				<strong style="color: #667eea;">Control Flow:</strong><br>
-				<span style="color: #6c757d;">{current.get('control_flow', '')}</span>
+				<strong style="color: #a855f7;">Control Flow:</strong><br>
+				<span style="color: #a78bfa;">{current.get('control_flow', '')}</span>
 			</div>
 			""", unsafe_allow_html=True)
 		
 		if current.get('next_action'):
 			st.markdown(f"""
 			<div style="margin-bottom: 1rem;">
-				<strong style="color: #667eea;">Next Action:</strong><br>
-				<span style="color: #6c757d;">{current.get('next_action', '')}</span>
+				<strong style="color: #a855f7;">Next Action:</strong><br>
+				<span style="color: #a78bfa;">{current.get('next_action', '')}</span>
 			</div>
 			""", unsafe_allow_html=True)
 		
@@ -521,20 +639,20 @@ else:
 		call_stack = current.get("call_stack", [])
 		st.markdown("""
 		<div class="card">
-			<h3 style="color: #495057; margin-bottom: 1rem;">📞 Call Stack</h3>
+			<h3 style="color: #8b5cf6; margin-bottom: 1rem;">📞 Call Stack</h3>
 		""", unsafe_allow_html=True)
 		
 		if call_stack:
 			for i, func in enumerate(call_stack):
 				indent = "&nbsp;" * (i * 2)
 				st.markdown(f"""
-				<div style="margin: 0.5rem 0; color: #6c757d;">
-					{indent}→ <strong style="color: #667eea;">{func}</strong>
+				<div style="margin: 0.5rem 0; color: #a78bfa;">
+					{indent}→ <strong style="color: #a855f7;">{func}</strong>
 				</div>
 				""", unsafe_allow_html=True)
 		else:
 			st.markdown("""
-			<div style="color: #6c757d;">Main execution</div>
+			<div style="color: #a78bfa;">Main execution</div>
 			""", unsafe_allow_html=True)
 		
 		st.markdown("</div>", unsafe_allow_html=True)
@@ -571,7 +689,7 @@ else:
 			for ds_name, ds_info in data_structures.items():
 				st.markdown(f"""
 				<div class="card" style="margin-bottom: 1rem;">
-					<h4 style="color: #495057; margin-bottom: 1rem;">{ds_name}</h4>
+					<h4 style="color: #8b5cf6; margin-bottom: 1rem;">{ds_name}</h4>
 				""", unsafe_allow_html=True)
 				
 				if isinstance(ds_info, dict):
@@ -584,8 +702,8 @@ else:
 						if elements:
 							st.markdown(f"""
 							<div style="margin-bottom: 1rem;">
-								<strong style="color: #667eea;">Length:</strong> {length} | 
-								<strong style="color: #667eea;">Current Index:</strong> {current_index}
+								<strong style="color: #a855f7;">Length:</strong> {length} | 
+								<strong style="color: #a855f7;">Current Index:</strong> {current_index}
 							</div>
 							""", unsafe_allow_html=True)
 							
@@ -617,16 +735,16 @@ else:
 						
 						st.markdown(f"""
 						<div style="margin-bottom: 1rem;">
-							<strong style="color: #667eea;">Keys:</strong> {keys}<br>
-							<strong style="color: #667eea;">Values:</strong> {values}
+							<strong style="color: #a855f7;">Keys:</strong> {keys}<br>
+							<strong style="color: #a855f7;">Values:</strong> {values}
 						</div>
 						""", unsafe_allow_html=True)
 						
 						if current_key:
 							st.markdown(f"""
-							<div style="background: #fff3bf; padding: 0.5rem; border-radius: 4px; 
-							            border-left: 4px solid #ff6b6b;">
-								<strong style="color: #667eea;">Current Key:</strong> {current_key}
+							<div style="background: rgba(147, 51, 234, 0.2); padding: 0.5rem; border-radius: 4px; 
+							            border-left: 4px solid #a855f7;">
+								<strong style="color: #a855f7;">Current Key:</strong> {current_key}
 							</div>
 							""", unsafe_allow_html=True)
 					
@@ -643,7 +761,7 @@ else:
 		with st.expander("📈 Variable Changes", expanded=False):
 			st.markdown("""
 			<div class="card">
-				<h4 style="color: #495057; margin-bottom: 1rem;">Variable Changes from Previous Step</h4>
+				<h4 style="color: #8b5cf6; margin-bottom: 1rem;">Variable Changes from Previous Step</h4>
 			""", unsafe_allow_html=True)
 			
 			current_vars = current.get("variables", {})
@@ -658,26 +776,26 @@ else:
 					if prev_value != var_value:
 						changes_found = True
 						st.markdown(f"""
-						<div style="background: #e8f5e8; padding: 0.75rem; border-radius: 6px; 
-						            border-left: 4px solid #28a745; margin: 0.5rem 0;">
-							<strong style="color: #495057;">{var_name}:</strong> 
-							<code style="background: #fff; padding: 0.2rem 0.4rem; border-radius: 3px;">{prev_value}</code> 
+						<div style="background: rgba(147, 51, 234, 0.2); padding: 0.75rem; border-radius: 6px; 
+						            border-left: 4px solid #a855f7; margin: 0.5rem 0;">
+							<strong style="color: #8b5cf6;">{var_name}:</strong> 
+							<code style="background: rgba(147, 51, 234, 0.3); padding: 0.2rem 0.4rem; border-radius: 3px;">{prev_value}</code> 
 							→ 
-							<code style="background: #fff; padding: 0.2rem 0.4rem; border-radius: 3px;">{var_value}</code>
-							<span style="color: #28a745;">🔄 Changed</span>
+							<code style="background: rgba(147, 51, 234, 0.3); padding: 0.2rem 0.4rem; border-radius: 3px;">{var_value}</code>
+							<span style="color: #a855f7;">🔄 Changed</span>
 						</div>
 						""", unsafe_allow_html=True)
 					else:
 						st.markdown(f"""
-						<div style="background: #f8f9fa; padding: 0.5rem; border-radius: 6px; 
-						            margin: 0.25rem 0; color: #6c757d;">
+						<div style="background: rgba(147, 51, 234, 0.1); padding: 0.5rem; border-radius: 6px; 
+						            margin: 0.25rem 0; color: #a78bfa;">
 							<strong>{var_name}:</strong> {var_value} (unchanged)
 						</div>
 						""", unsafe_allow_html=True)
 				
 				if not changes_found:
 					st.markdown("""
-					<div style="text-align: center; color: #6c757d; padding: 1rem;">
+					<div style="text-align: center; color: #a78bfa; padding: 1rem;">
 						No variable changes in this step
 					</div>
 					""", unsafe_allow_html=True)
@@ -685,9 +803,9 @@ else:
 				for var_name, var_value in current_vars.items():
 					if not var_name.endswith('_type'):
 						st.markdown(f"""
-						<div style="background: #f8f9fa; padding: 0.5rem; border-radius: 6px; 
+						<div style="background: rgba(147, 51, 234, 0.1); padding: 0.5rem; border-radius: 6px; 
 						            margin: 0.25rem 0;">
-							<strong style="color: #667eea;">{var_name}:</strong> {var_value}
+							<strong style="color: #a855f7;">{var_name}:</strong> {var_value}
 						</div>
 						""", unsafe_allow_html=True)
 			
