@@ -31,6 +31,15 @@ def build_prompts(language: str, code_text: str) -> Tuple[str, str]:
 		"Your task is to create a detailed, accurate visualization of how code executes. "
 		"Analyze every line, every operation, every variable change, and every control flow decision. "
 		"Be extremely precise about variable values, memory states, and execution flow. "
+		"For the summary, provide a comprehensive analysis that includes: "
+		"1) Clear explanation of the code's purpose and main functionality, "
+		"2) Detailed breakdown of each function and its role, "
+		"3) Algorithm logic and approach used, "
+		"4) Data flow and how variables are used throughout, "
+		"5) Expected outputs and behavior, "
+		"6) Key programming concepts demonstrated, "
+		"7) Time/space complexity analysis if applicable, "
+		"8) Educational insights about the code structure. "
 		"Return ONLY valid JSON that can be parsed with Python json.loads(). "
 		"No markdown, no explanations outside the JSON structure."
 	)
@@ -44,7 +53,7 @@ Code:
 Create a detailed step-by-step execution analysis. Return ONLY valid JSON with this exact structure:
 {{
   "language": "{language}",
-  "summary": "Detailed summary explaining what the code does, its purpose, and main functionality",
+  "summary": "Comprehensive analysis including: 1) Code purpose and main functionality, 2) Function definitions and their roles, 3) Algorithm logic and approach, 4) Data flow and variable usage, 5) Expected outputs and behavior, 6) Key concepts demonstrated, 7) Complexity analysis if applicable",
   "steps": [
     {{
       "step": 1,
@@ -85,6 +94,18 @@ CRITICAL RULES:
 9. Show the execution context (which function, loop iteration, etc.)
 10. Use only double quotes, no trailing commas, valid JSON syntax
 11. Make explanations educational and detailed for learning purposes
+
+SUMMARY REQUIREMENTS:
+- Write a comprehensive, educational summary (3-5 paragraphs)
+- Explain the code's purpose and main functionality clearly
+- Break down each function and explain its specific role
+- Describe the algorithm logic and approach used
+- Explain data flow and variable usage patterns
+- Detail expected outputs and behavior
+- Highlight key programming concepts demonstrated
+- Include complexity analysis (time/space) where applicable
+- Provide educational insights about code structure and design patterns
+- Make it suitable for learning and understanding the code thoroughly
 """
 	return system_prompt, user_prompt
 
@@ -128,7 +149,7 @@ def analyze_code_with_llm(
 	language: str,
 	model_name: str = "llama-3.1-8b-instant",
 	temperature: float = 0.2,
-	max_tokens: int = 4000,
+	max_tokens: int = 6000,
 ) -> Dict[str, Any]:
 	api_key = get_groq_api_key()
 	if not api_key:

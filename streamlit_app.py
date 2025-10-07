@@ -17,127 +17,154 @@ load_dotenv()
 
 # ----- Background Image Function -----
 def set_bg_with_overlay(img_path, overlay_rgba="rgba(0,0,0,0.45)"):
-	"""Set background image with overlay for better text readability"""
-	try:
-		with open(img_path, "rb") as f:
-			b64 = base64.b64encode(f.read()).decode()
-		st.markdown(
-			f"""
-			<style>
-			.stApp {{
-				background-image: linear-gradient({overlay_rgba}, {overlay_rgba}), url("data:image/png;base64,{b64}");
-				background-size: cover;
-				background-position: center;
-				background-attachment: fixed;
-				min-height: 100vh;
-			}}
-			.stApp .main .block-container {{
-				background: rgba(147, 51, 234, 0.1);
-				border-radius: 15px;
-				padding: 2rem;
-				margin-top: 2rem;
-				box-shadow: 0 8px 32px rgba(147, 51, 234, 0.3);
-				backdrop-filter: blur(10px);
-				border: 1px solid rgba(147, 51, 234, 0.3);
-			}}
-			</style>
-			""",
-			unsafe_allow_html=True
-		)
-		return True
-	except FileNotFoundError:
-		st.markdown("""
-		<style>
-		.stApp {
-			background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
-			min-height: 100vh;
-		}
-		.stApp .main .block-container {
-			background: rgba(147, 51, 234, 0.1);
-			border-radius: 15px;
-			padding: 2rem;
-			margin-top: 2rem;
-			box-shadow: 0 8px 32px rgba(147, 51, 234, 0.3);
-			backdrop-filter: blur(10px);
-			border: 1px solid rgba(147, 51, 234, 0.3);
-		}
-		</style>
-		""", unsafe_allow_html=True)
-		return False
+    """Set background image with overlay for better text readability"""
+    try:
+        with open(img_path, "rb") as f:
+            b64 = base64.b64encode(f.read()).decode()
+        st.markdown(
+            f"""
+            <style>
+            .stApp {{
+                background-image: linear-gradient({overlay_rgba}, {overlay_rgba}), url("data:image/png;base64,{b64}");
+                background-size: cover;
+                background-position: center;
+                background-attachment: fixed;
+                min-height: 100vh;
+            }}
+            .stApp .main .block-container {{
+                background: rgba(147, 51, 234, 0.1);
+                border-radius: 15px;
+                padding: 2rem;
+                margin-top: 2rem;
+                box-shadow: 0 8px 32px rgba(147, 51, 234, 0.3);
+                backdrop-filter: blur(10px);
+                border: 1px solid rgba(147, 51, 234, 0.3);
+            }}
+            </style>
+            """,
+            unsafe_allow_html=True
+        )
+        return True
+    except FileNotFoundError:
+        st.markdown("""
+        <style>
+        .stApp {
+            background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+            min-height: 100vh;
+        }
+        .stApp .main .block-container {
+            background: rgba(147, 51, 234, 0.1);
+            border-radius: 15px;
+            padding: 2rem;
+            margin-top: 2rem;
+            box-shadow: 0 8px 32px rgba(147, 51, 234, 0.3);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(147, 51, 234, 0.3);
+        }
+        </style>
+        """, unsafe_allow_html=True)
+        return False
 
 
 # ----- Session State Initialization -----
 if "code" not in st.session_state:
-	st.session_state.code = ""
+    st.session_state.code = ""
 if "language" not in st.session_state:
-	st.session_state.language = "python"
+    st.session_state.language = "python"
 if "analysis" not in st.session_state:
-	st.session_state.analysis = None  # type: Optional[Dict[str, Any]]
+    st.session_state.analysis = None  # type: Optional[Dict[str, Any]]
 if "steps" not in st.session_state:
-	st.session_state.steps = []  # type: List[Dict[str, Any]]
+    st.session_state.steps = []  # type: List[Dict[str, Any]]
 if "current_step" not in st.session_state:
-	st.session_state.current_step = 0
+    st.session_state.current_step = 0
 if "playing" not in st.session_state:
-	st.session_state.playing = False
+    st.session_state.playing = False
 if "last_tick" not in st.session_state:
-	st.session_state.last_tick = time.time()
+    st.session_state.last_tick = time.time()
 if "autoplay_interval" not in st.session_state:
-	st.session_state.autoplay_interval = 3.0
+    st.session_state.autoplay_interval = 3.0
 
 
 # ----- Utility Functions -----
 def build_highlighted_code_block(code_text: str, current_line: Optional[int], language: str) -> str:
-	"""Return HTML that renders code lines with the current line highlighted.
+    """Return HTML that renders code lines with the current line highlighted.
 
-	Uses <mark> for the active line index (1-based). Falls back gracefully if line
-	number is out of range. Shows context around the current line.
-	"""
-	lines = code_text.splitlines()
-	html_lines: List[str] = []
-	
-	# Show context around current line (3 lines before and after)
-	start_idx = max(0, (current_line or 1) - 4)
-	end_idx = min(len(lines), (current_line or 1) + 3)
-	
-	for idx in range(start_idx, end_idx):
-		line_num = idx + 1
-		line_content = lines[idx]
-		
-		# Create line number with padding
-		line_num_str = f"{line_num:3d}"
-		
-		if current_line == line_num:
-			html_lines.append(f"<div style='background:#fff3bf;border-left:4px solid #ff6b6b;padding-left:8px;'><span style='color:#666;margin-right:12px;'>{line_num_str}</span><code>{escape_html(line_content)}</code></div>")
-		else:
-			html_lines.append(f"<div><span style='color:#999;margin-right:12px;'>{line_num_str}</span><code>{escape_html(line_content)}</code></div>")
-	
-	# Wrap with a container mimicking code styling
-	html = (
-		"<div style=\"font-family:Menlo,Consolas,monospace;font-size:13px;"
-		"line-height:1.4;border:1px solid #ddd;border-radius:8px;"
-		"padding:16px;background:#f8f9fa;overflow-x:auto;box-shadow:0 2px 4px rgba(0,0,0,0.1);\">"
-		+ "\n".join(html_lines)
-		+ "</div>"
-	)
-	return html
+    Uses <mark> for the active line index (1-based). Falls back gracefully if line
+    number is out of range. Shows context around the current line.
+    """
+    lines = code_text.splitlines()
+    html_lines: List[str] = []
+    
+    # Show context around current line (3 lines before and after)
+    start_idx = max(0, (current_line or 1) - 4)
+    end_idx = min(len(lines), (current_line or 1) + 3)
+    
+    for idx in range(start_idx, end_idx):
+        line_num = idx + 1
+        line_content = lines[idx]
+        
+        # Create line number with padding
+        line_num_str = f"{line_num:3d}"
+        
+        if current_line == line_num:
+            html_lines.append(f"<div style='background:#fff3bf;border-left:4px solid #ff6b6b;padding-left:8px;'><span style='color:#666;margin-right:12px;'>{line_num_str}</span><code>{escape_html(line_content)}</code></div>")
+        else:
+            html_lines.append(f"<div><span style='color:#999;margin-right:12px;'>{line_num_str}</span><code>{escape_html(line_content)}</code></div>")
+    
+    # Wrap with a container mimicking code styling
+    html = (
+        "<div style=\"font-family:Menlo,Consolas,monospace;font-size:13px;"
+        "line-height:1.4;border:1px solid #ddd;border-radius:8px;"
+        "padding:16px;background:#f8f9fa;overflow-x:auto;box-shadow:0 2px 4px rgba(0,0,0,0.1);\">"
+        + "\n".join(html_lines)
+        + "</div>"
+    )
+    return html
 
 
 def escape_html(text: str) -> str:
-	return (
-		text.replace("&", "&amp;")
-		.replace("<", "&lt;")
-		.replace(">", "&gt;")
-		.replace('"', "&quot;")
-		.replace("'", "&#39;")
-	)
+    return (
+        text.replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace('"', "&quot;")
+        .replace("'", "&#39;")
+    )
+
+
+def format_summary(summary_text: str) -> str:
+    """Format the summary text with better structure and readability"""
+    paragraphs = [p.strip() for p in summary_text.split('\n\n') if p.strip()]
+    
+    formatted_html = ""
+    for i, paragraph in enumerate(paragraphs):
+        # Check if paragraph starts with a number (like "1)", "2)", etc.)
+        if paragraph and paragraph[0].isdigit() and ')' in paragraph[:3]:
+            formatted_html += f"""
+            <div style="margin-bottom: 1.2rem; line-height: 1.7; padding: 1rem; 
+                        background: rgba(147, 51, 234, 0.1); border-left: 4px solid #8b5cf6; 
+                        border-radius: 8px;">
+                <strong style="color: #8b5cf6; font-size: 1.1rem;">{paragraph}</strong>
+            </div>
+            """
+        else:
+            formatted_html += f"""
+            <div style="margin-bottom: 1.2rem; line-height: 1.7; padding: 1rem; 
+                        background: rgba(147, 51, 234, 0.05); border-radius: 8px; 
+                        text-align: justify;">
+                {paragraph}
+            </div>
+            """
+    
+    return formatted_html
 
 
 # ----- UI -----
 st.set_page_config(
-	page_title="Code Visualizer AI", 
-	page_icon="🧠", 
-	layout="wide",
-	initial_sidebar_state="collapsed"
+    page_title="Code Visualizer AI", 
+    page_icon="🧠", 
+    layout="wide",
+    initial_sidebar_state="collapsed"
 )
 
 # Set background image
@@ -146,222 +173,54 @@ bg_loaded = set_bg_with_overlay("pic.jpg", overlay_rgba="rgba(0,0,0,0.4)")
 # Custom CSS for modern styling with background image
 st.markdown("""
 <style>
-	/* Main container styling */
-	.main .block-container {
-		padding-top: 2rem;
-		padding-bottom: 2rem;
-		max-width: 1200px;
-		background: rgba(147, 51, 234, 0.1);
-		border-radius: 20px;
-		backdrop-filter: blur(20px);
-		box-shadow: 0 20px 40px rgba(147, 51, 234, 0.3);
-		border: 1px solid rgba(147, 51, 234, 0.3);
-	}
-	
-	/* Header styling */
-	.header-container {
-		background: rgba(147, 51, 234, 0.9);
-		backdrop-filter: blur(20px);
-		padding: 2rem;
-		border-radius: 20px;
-		margin-bottom: 2rem;
-		color: white;
-		text-align: center;
-		box-shadow: 0 10px 30px rgba(147, 51, 234, 0.4);
-		border: 1px solid rgba(147, 51, 234, 0.4);
-	}
-	
-	.header-title {
-		font-size: 2.5rem;
-		font-weight: 700;
-		margin-bottom: 0.5rem;
-		text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
-	}
-	
-	.header-subtitle {
-		font-size: 1.1rem;
-		opacity: 0.95;
-		margin-bottom: 0;
-		text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
-	}
-	
-	/* Card styling */
-	.card {
-		background: rgba(147, 51, 234, 0.15);
-		backdrop-filter: blur(15px);
-		padding: 1.5rem;
-		border-radius: 15px;
-		box-shadow: 0 8px 25px rgba(147, 51, 234, 0.2);
-		border: 1px solid rgba(147, 51, 234, 0.3);
-		margin-bottom: 1rem;
-	}
-	
-	/* Control buttons styling */
-	.control-button {
-		background: rgba(147, 51, 234, 0.9);
-		backdrop-filter: blur(10px);
-		color: white;
-		border: 1px solid rgba(147, 51, 234, 0.4);
-		border-radius: 10px;
-		padding: 0.5rem 1rem;
-		font-weight: 600;
-		transition: all 0.3s ease;
-		box-shadow: 0 4px 15px rgba(147, 51, 234, 0.4);
-	}
-	
-	.control-button:hover {
-		transform: translateY(-2px);
-		box-shadow: 0 8px 25px rgba(147, 51, 234, 0.6);
-		background: rgba(147, 51, 234, 1);
-	}
-	
-	/* Progress bar styling */
-	.progress-container {
-		background: rgba(147, 51, 234, 0.15);
-		backdrop-filter: blur(10px);
-		border-radius: 15px;
-		padding: 1rem;
-		margin: 1rem 0;
-		border: 1px solid rgba(147, 51, 234, 0.3);
-		box-shadow: 0 4px 15px rgba(147, 51, 234, 0.2);
-	}
-	
-	/* Info panels styling */
-	.info-panel {
-		background: rgba(147, 51, 234, 0.15);
-		backdrop-filter: blur(10px);
-		border-radius: 15px;
-		padding: 1.5rem;
-		border-left: 4px solid rgba(147, 51, 234, 0.8);
-		margin: 1rem 0;
-		box-shadow: 0 4px 15px rgba(147, 51, 234, 0.2);
-	}
-	
-	.info-panel h3 {
-		color: #8b5cf6;
-		margin-bottom: 1rem;
-		font-size: 1.2rem;
-	}
-	
-	/* Variable display styling */
-	.variable-item {
-		background: rgba(147, 51, 234, 0.1);
-		backdrop-filter: blur(5px);
-		padding: 0.75rem;
-		border-radius: 10px;
-		border: 1px solid rgba(147, 51, 234, 0.3);
-		margin: 0.5rem 0;
-		box-shadow: 0 2px 8px rgba(147, 51, 234, 0.2);
-	}
-	
-	/* Status indicators */
-	.status-playing {
-		background: rgba(147, 51, 234, 0.9);
-		backdrop-filter: blur(10px);
-		color: white;
-		padding: 0.5rem 1rem;
-		border-radius: 20px;
-		font-weight: 600;
-		animation: pulse 2s infinite;
-		box-shadow: 0 4px 15px rgba(147, 51, 234, 0.4);
-		border: 1px solid rgba(255,255,255,0.2);
-	}
-	
-	@keyframes pulse {
-		0% { opacity: 1; transform: scale(1); }
-		50% { opacity: 0.8; transform: scale(1.02); }
-		100% { opacity: 1; transform: scale(1); }
-	}
-	
-	/* Code block styling */
-	.code-container {
-		background: rgba(30, 30, 30, 0.95);
-		backdrop-filter: blur(10px);
-		border-radius: 15px;
-		padding: 1.5rem;
-		box-shadow: 0 10px 30px rgba(0,0,0,0.4);
-		border: 1px solid rgba(255,255,255,0.1);
-	}
-	
-	/* Section headers */
-	.section-header {
-		font-size: 1.5rem;
-		font-weight: 600;
-		color: #8b5cf6;
-		margin: 2rem 0 1rem 0;
-		border-bottom: 3px solid rgba(147, 51, 234, 0.8);
-		padding-bottom: 0.5rem;
-		text-shadow: 1px 1px 2px rgba(147, 51, 234, 0.3);
-	}
-	
-	/* Streamlit component overrides for better contrast */
-	.stSelectbox > div > div {
-		background: rgba(147, 51, 234, 0.15);
-		backdrop-filter: blur(10px);
-		border-radius: 8px;
-		border: 1px solid rgba(147, 51, 234, 0.3);
-	}
-	
-	.stTextArea > div > div > textarea {
-		background: rgba(147, 51, 234, 0.1);
-		backdrop-filter: blur(10px);
-		border-radius: 8px;
-		border: 1px solid rgba(147, 51, 234, 0.3);
-	}
-	
-	.stButton > button {
-		background: rgba(147, 51, 234, 0.9);
-		backdrop-filter: blur(10px);
-		border: 1px solid rgba(147, 51, 234, 0.4);
-		border-radius: 10px;
-		box-shadow: 0 4px 15px rgba(147, 51, 234, 0.4);
-	}
-	
-	.stButton > button:hover {
-		background: rgba(147, 51, 234, 1);
-		transform: translateY(-1px);
-		box-shadow: 0 6px 20px rgba(147, 51, 234, 0.6);
-	}
-	
-	/* Progress bar override */
-	.stProgress > div > div > div > div {
-		background: rgba(147, 51, 234, 0.8);
-	}
+    /* Main container styling */
+    .main .block-container {
+        padding-top: 2rem;
+        padding-bottom: 2rem;
+        max-width: 1200px;
+        background: rgba(147, 51, 234, 0.1);
+        border-radius: 20px;
+        backdrop-filter: blur(20px);
+        box-shadow: 0 20px 40px rgba(147, 51, 234, 0.3);
+        border: 1px solid rgba(147, 51, 234, 0.3);
+    }
+    
+    /* Header styling */
+    .header-container {
+        background: rgba(147, 51, 234, 0.9);
+        backdrop-filter: blur(20px);
+        padding: 2rem;
+        border-radius: 20px;
+        margin-bottom: 2rem;
+        color: white;
+        text-align: center;
+        box-shadow: 0 10px 30px rgba(147, 51, 234, 0.4);
+        border: 1px solid rgba(147, 51, 234, 0.4);
+    }
+    
+    .header-title {
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+    }
+    
+    .header-subtitle {
+        font-size: 1.1rem;
+        opacity: 0.95;
+        margin-bottom: 0;
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+    }
 </style>
 """, unsafe_allow_html=True)
 
 # Header section
 st.markdown("""
 <div class="header-container">
-	<h1 class="header-title">🧠 Code Visualizer AI</h1>
-	<p class="header-subtitle">Interactive step-by-step code execution visualization powered by AI</p>
+    <h1 class="header-title">🧠 Code Visualizer AI</h1>
+    <p class="header-subtitle">Interactive step-by-step code execution visualization powered by AI</p>
 </div>
 """, unsafe_allow_html=True)
-
-# API Status
-api_key = get_groq_api_key()
-if api_key:
-	st.markdown("""
-	<div style="background: rgba(147, 51, 234, 0.9); 
-	            backdrop-filter: blur(10px);
-	            color: white; padding: 0.75rem 1.5rem; border-radius: 15px; 
-	            margin-bottom: 1rem; text-align: center; font-weight: 600;
-	            box-shadow: 0 4px 15px rgba(147, 51, 234, 0.4);
-	            border: 1px solid rgba(255,255,255,0.2);">
-		✅ API Ready - Ready to analyze your code!
-	</div>
-	""", unsafe_allow_html=True)
-else:
-	st.markdown("""
-	<div style="background: rgba(255, 107, 107, 0.9); 
-	            backdrop-filter: blur(10px);
-	            color: white; padding: 0.75rem 1.5rem; border-radius: 15px; 
-	            margin-bottom: 1rem; text-align: center; font-weight: 600;
-	            box-shadow: 0 4px 15px rgba(255, 107, 107, 0.4);
-	            border: 1px solid rgba(255,255,255,0.2);">
-		⚠️ Set GROQ_API_KEY in .env or Streamlit secrets to enable analysis
-	</div>
-	""", unsafe_allow_html=True)
 
 # Code Input Section
 st.markdown('<h2 class="section-header">📝 Code Input</h2>', unsafe_allow_html=True)
@@ -370,37 +229,37 @@ st.markdown('<h2 class="section-header">📝 Code Input</h2>', unsafe_allow_html
 col1, col2, col3 = st.columns([2, 1, 1])
 
 with col1:
-	# Normalize language selection and ensure a valid index
-	languages = ["python", "javascript", "cpp", "java", "csharp", "go", "rust", "ruby"]
-	current_language = (
-		st.session_state.language if st.session_state.language in languages else "python"
-	)
+    # Normalize language selection and ensure a valid index
+    languages = ["python", "javascript", "cpp", "java", "csharp", "go", "rust", "ruby"]
+    current_language = (
+        st.session_state.language if st.session_state.language in languages else "python"
+    )
 st.session_state.language = st.selectbox(
-		"🔤 Programming Language",
-		options=languages,
-		index=languages.index(current_language),
-		help="Select the programming language of your code",
-	)
+        "🔤 Programming Language",
+        options=languages,
+        index=languages.index(current_language),
+        help="Select the programming language of your code",
+    )
 
 with col2:
-	st.markdown("") # Spacer
-	st.markdown("") # Spacer
+    st.markdown("") # Spacer
+    st.markdown("") # Spacer
 
 with col3:
-	analyze_clicked = st.button(
-		"🚀 Analyze Code", 
-		type="primary", 
-		disabled=not bool(st.session_state.code),
-		use_container_width=True,
-		help="Start the AI-powered code analysis"
-	)
+    analyze_clicked = st.button(
+        "🚀 Analyze Code", 
+        type="primary", 
+        disabled=not bool(st.session_state.code),
+        use_container_width=True,
+        help="Start the AI-powered code analysis"
+    )
 
 # Code input area with better styling
 st.session_state.code = st.text_area(
-	"💻 Your Code",
-	value=st.session_state.code,
-	height=300,
-	placeholder="""# Paste your code here to visualize its execution step by step
+    "💻 Your Code",
+    value=st.session_state.code,
+    height=300,
+    placeholder="""# Paste your code here to visualize its execution step by step
 
 # Example:
 def fibonacci(n):
@@ -410,63 +269,65 @@ def fibonacci(n):
 
 result = fibonacci(5)
 print(f"Fibonacci(5) = {result}")""",
-	help="Enter your code to see how it executes step by step"
+    help="Enter your code to see how it executes step by step"
 )
 
 if analyze_clicked:
-	with st.spinner("🧠 AI is analyzing your code..."):
-		try:
-			analysis = analyze_code_with_llm(
-				st.session_state.code,
-				st.session_state.language,
-			)
-			st.session_state.analysis = analysis
-			st.session_state.steps = analysis.get("steps", [])
-			st.session_state.current_step = 0
-			st.session_state.playing = False
-			
-			# Success message with better styling
-			st.markdown("""
-			<div style="background: rgba(147, 51, 234, 0.9); 
-			            backdrop-filter: blur(10px);
-			            color: white; padding: 1rem 1.5rem; border-radius: 15px; 
-			            margin: 1rem 0; text-align: center; font-weight: 600;
-			            box-shadow: 0 4px 15px rgba(147, 51, 234, 0.4);
-			            border: 1px solid rgba(255,255,255,0.2);">
-				🎉 Analysis Complete! Scroll down to see the visualization.
-			</div>
-			""", unsafe_allow_html=True)
-		except Exception as e:
-			st.session_state.analysis = None
-			st.session_state.steps = []
-			st.session_state.current_step = 0
-			st.session_state.playing = False
-			
-			# Error message with better styling
-			st.markdown(f"""
-			<div style="background: rgba(255, 107, 107, 0.9); 
-			            backdrop-filter: blur(10px);
-			            color: white; padding: 1rem 1.5rem; border-radius: 15px; 
-			            margin: 1rem 0; text-align: center; font-weight: 600;
-			            box-shadow: 0 4px 15px rgba(255, 107, 107, 0.4);
-			            border: 1px solid rgba(255,255,255,0.2);">
-				❌ Analysis failed: {e}
-			</div>
-			""", unsafe_allow_html=True)
+    with st.spinner("🧠 AI is analyzing your code..."):
+        try:
+            analysis = analyze_code_with_llm(
+                st.session_state.code,
+                st.session_state.language,
+            )
+            st.session_state.analysis = analysis
+            st.session_state.steps = analysis.get("steps", [])
+            st.session_state.current_step = 0
+            st.session_state.playing = False
+
+            # Success message with better styling
+            st.markdown("""
+            <div style="background: rgba(147, 51, 234, 0.9);
+                        backdrop-filter: blur(10px);
+                        color: white; padding: 1rem 1.5rem; border-radius: 15px;
+                        margin: 1rem 0; text-align: center; font-weight: 600;
+                        box-shadow: 0 4px 15px rgba(147, 51, 234, 0.4);
+                        border: 1px solid rgba(255,255,255,0.2);">
+                🎉 Analysis Complete! Scroll down to see the visualization.
+            </div>
+            """, unsafe_allow_html=True)
+        except Exception as e:
+            st.session_state.analysis = None
+            st.session_state.steps = []
+            st.session_state.current_step = 0
+            st.session_state.playing = False
+
+            # Error message with better styling
+            st.markdown(f"""
+            <div style="background: rgba(255, 107, 107, 0.9);
+                        backdrop-filter: blur(10px);
+                        color: white; padding: 1rem 1.5rem; border-radius: 15px;
+                        margin: 1rem 0; text-align: center; font-weight: 600;
+                        box-shadow: 0 4px 15px rgba(255, 107, 107, 0.4);
+                        border: 1px solid rgba(255,255,255,0.2);">
+                ❌ Analysis failed: {e}
+            </div>
+            """, unsafe_allow_html=True)
 
 # Visualization Section
 st.markdown('<h2 class="section-header">🎬 Code Execution Visualization</h2>', unsafe_allow_html=True)
 
 if st.session_state.analysis:
-	# Summary Card
-	summary = st.session_state.analysis.get("summary", "")
-	if summary:
-		st.markdown(f"""
-		<div class="card">
-			<h3 style="color: #8b5cf6; margin-bottom: 1rem;">📋 Code Summary</h3>
-			<p style="font-size: 1.1rem; line-height: 1.6; color: #a78bfa;">{summary}</p>
-		</div>
-		""", unsafe_allow_html=True)
+    # Summary Card
+    summary = st.session_state.analysis.get("summary", "")
+    if summary:
+        # Split summary into paragraphs first
+        formatted_summary = format_summary(summary)
+        
+        # Display the complete summary in one block
+        st.markdown(formatted_summary, unsafe_allow_html=True)
+
+
+
 
 steps: List[Dict[str, Any]] = st.session_state.steps
 if not steps:
