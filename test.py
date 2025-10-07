@@ -1,19 +1,21 @@
-import os
-from dotenv import load_dotenv
-from langchain_groq import ChatGroq
+# Testing the functions
 
-load_dotenv()
+def visualize_primes(limit):
+    """
+    Find and return all prime numbers up to the given limit.
+    """
+    primes = []
+    for num in range(2, limit + 1):
+        is_prime = True
+        for i in range(2, int(num ** 0.5) + 1):
+            if num % i == 0:
+                is_prime = False
+                break
+        if is_prime:
+            primes.append(num)
+    return primes
 
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-
-# Initialize Groq LLM
-llm = ChatGroq(
-    api_key=GROQ_API_KEY,
-    model="llama-3.1-8b-instant",   
-    temperature=0.7,
-    max_tokens=200
-)
-
-# Ask something
-response = llm.invoke("Write a short poem about coding in Python.")
-print(response.content)
+# Test the function
+limit = 20
+prime_numbers = visualize_primes(limit)
+print(f"Prime numbers up to {limit}: {prime_numbers}")
