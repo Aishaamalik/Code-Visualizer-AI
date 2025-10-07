@@ -27,9 +27,12 @@ def get_groq_api_key() -> Optional[str]:
 
 def build_prompts(language: str, code_text: str) -> Tuple[str, str]:
 	system_prompt = (
-		"You are Code Visualizer AI. Analyze the provided code and produce a strict JSON "
-		"object describing execution step by step. The JSON MUST parse with Python json.loads. "
-		"Do not include any comments, explanations, or markdown fences in the output."
+		"You are Code Visualizer AI, an expert at analyzing code execution step by step. "
+		"Your task is to create a detailed, accurate visualization of how code executes. "
+		"Analyze every line, every operation, every variable change, and every control flow decision. "
+		"Be extremely precise about variable values, memory states, and execution flow. "
+		"Return ONLY valid JSON that can be parsed with Python json.loads(). "
+		"No markdown, no explanations outside the JSON structure."
 	)
 	user_prompt = f"""
 Language: {language}
@@ -38,28 +41,50 @@ Code:
 {code_text}
 </CODE>
 
-Return ONLY valid JSON with this exact structure (no prose, no code fences):
+Create a detailed step-by-step execution analysis. Return ONLY valid JSON with this exact structure:
 {{
   "language": "{language}",
-  "summary": "One-paragraph summary of what the code does",
+  "summary": "Detailed summary explaining what the code does, its purpose, and main functionality",
   "steps": [
     {{
       "step": 1,
-      "line": 1,  
-      "operation": "Short title of what happens",
-      "explanation": "Plain-English explanation of this step",
-      "variables": {{ "varName": "value or description" }},
-      "call_stack": ["main"],
-      "outputs": ""
+      "line": 1,
+      "operation": "Detailed operation name (e.g., 'Variable Declaration', 'Function Call', 'Conditional Check', 'Loop Iteration')",
+      "explanation": "Detailed explanation of what happens at this step, including the reasoning and context",
+      "variables": {{ 
+        "varName": "current_value", 
+        "varName_type": "data_type",
+        "varName_address": "memory_location_if_relevant"
+      }},
+      "call_stack": ["function_name", "nested_function"],
+      "outputs": "Any console output, return values, or side effects",
+      "memory_state": {{ 
+        "heap": {{ "object_id": "object_details" }},
+        "stack": ["local_variables"]
+      }},
+      "control_flow": "branch_taken or loop_condition or exception_handling",
+      "data_structures": {{
+        "list_name": {{ "elements": [1, 2, 3], "index": 0, "length": 3 }},
+        "dict_name": {{ "keys": ["key1"], "values": ["value1"], "current_key": "key1" }}
+      }},
+      "execution_context": "What part of the program is currently executing",
+      "next_action": "What will happen in the next step"
     }}
   ]
 }}
 
-Rules:
-- "line" must be an integer line number or null if unknown.
-- Use only double quotes for all strings.
-- Do not include trailing commas.
-- Do not include additional keys beyond those listed.
+CRITICAL RULES:
+1. Track EVERY variable assignment, function call, conditional check, and loop iteration
+2. Show the EXACT values of variables at each step
+3. Include data type information for variables
+4. Track function calls and return values accurately
+5. Show control flow decisions (if/else branches, loop conditions)
+6. For data structures (lists, dicts, objects), show their current state
+7. Include memory management details when relevant
+8. Be precise about line numbers - each executable line should have a step
+9. Show the execution context (which function, loop iteration, etc.)
+10. Use only double quotes, no trailing commas, valid JSON syntax
+11. Make explanations educational and detailed for learning purposes
 """
 	return system_prompt, user_prompt
 
@@ -102,8 +127,8 @@ def analyze_code_with_llm(
 	code_text: str,
 	language: str,
 	model_name: str = "llama-3.1-8b-instant",
-	temperature: float = 0.4,
-	max_tokens: int = 1000,
+	temperature: float = 0.2,
+	max_tokens: int = 4000,
 ) -> Dict[str, Any]:
 	api_key = get_groq_api_key()
 	if not api_key:
@@ -137,6 +162,11 @@ def analyze_code_with_llm(
 				"variables": step.get("variables", {}),
 				"call_stack": step.get("call_stack", []),
 				"outputs": step.get("outputs", ""),
+				"memory_state": step.get("memory_state", {}),
+				"control_flow": step.get("control_flow", ""),
+				"data_structures": step.get("data_structures", {}),
+				"execution_context": step.get("execution_context", ""),
+				"next_action": step.get("next_action", ""),
 			}
 		)
 	result["steps"] = normalized_steps

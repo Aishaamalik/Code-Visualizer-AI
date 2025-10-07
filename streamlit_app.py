@@ -38,20 +38,32 @@ def build_highlighted_code_block(code_text: str, current_line: Optional[int], la
 	"""Return HTML that renders code lines with the current line highlighted.
 
 	Uses <mark> for the active line index (1-based). Falls back gracefully if line
-	number is out of range.
+	number is out of range. Shows context around the current line.
 	"""
 	lines = code_text.splitlines()
 	html_lines: List[str] = []
-	for idx, line in enumerate(lines, start=1):
-		if current_line == idx:
-			html_lines.append(f"<div style='background:#fff3bf'><code>{escape_html(line)}</code></div>")
+	
+	# Show context around current line (3 lines before and after)
+	start_idx = max(0, (current_line or 1) - 4)
+	end_idx = min(len(lines), (current_line or 1) + 3)
+	
+	for idx in range(start_idx, end_idx):
+		line_num = idx + 1
+		line_content = lines[idx]
+		
+		# Create line number with padding
+		line_num_str = f"{line_num:3d}"
+		
+		if current_line == line_num:
+			html_lines.append(f"<div style='background:#fff3bf;border-left:4px solid #ff6b6b;padding-left:8px;'><span style='color:#666;margin-right:12px;'>{line_num_str}</span><code>{escape_html(line_content)}</code></div>")
 		else:
-			html_lines.append(f"<div><code>{escape_html(line)}</code></div>")
+			html_lines.append(f"<div><span style='color:#999;margin-right:12px;'>{line_num_str}</span><code>{escape_html(line_content)}</code></div>")
+	
 	# Wrap with a container mimicking code styling
 	html = (
 		"<div style=\"font-family:Menlo,Consolas,monospace;font-size:13px;"
-		"line-height:1.4;border:1px solid #eee;border-radius:6px;"
-		"padding:12px;background:#fafafa;overflow-x:auto;\">"
+		"line-height:1.4;border:1px solid #ddd;border-radius:8px;"
+		"padding:16px;background:#f8f9fa;overflow-x:auto;box-shadow:0 2px 4px rgba(0,0,0,0.1);\">"
 		+ "\n".join(html_lines)
 		+ "</div>"
 	)
@@ -169,27 +181,142 @@ else:
 
 	st.progress((current_idx + 1) / total_steps, text=f"Step {current_idx + 1} / {total_steps}")
 
-	# Code highlight
-	st.markdown("Current line highlighted in yellow:")
+	# Code highlight with context
+	st.markdown("**📍 Code Execution (Current line highlighted):**")
 	st.markdown(
 		build_highlighted_code_block(st.session_state.code, current_line, st.session_state.language),
 		unsafe_allow_html=True,
 	)
 
-	# Details
-	with st.expander("Step details", expanded=True):
-		st.write(f"Operation: {current.get('operation', '')}")
-		st.write(current.get("explanation", ""))
-		cols = st.columns([1, 1, 1])
+	# Enhanced Details Section
+	with st.expander("📋 Step Details", expanded=True):
+		# Operation and Context
+		col1, col2 = st.columns([2, 1])
+		with col1:
+			st.markdown(f"**🔧 Operation:** {current.get('operation', 'Unknown')}")
+			st.markdown(f"**📝 Explanation:** {current.get('explanation', 'No explanation available')}")
+		with col2:
+			st.markdown(f"**📍 Execution Context:** {current.get('execution_context', 'Main execution')}")
+			if current.get('next_action'):
+				st.markdown(f"**⏭️ Next:** {current.get('next_action', '')}")
+		
+		# Control Flow Information
+		if current.get('control_flow'):
+			st.markdown(f"**🔄 Control Flow:** {current.get('control_flow', '')}")
+		
+		# Main Information Grid
+		cols = st.columns([1, 1, 1, 1])
+		
 		with cols[0]:
-			st.markdown("**Variables**")
-			st.json(current.get("variables", {}))
+			st.markdown("**📊 Variables & Types**")
+			variables = current.get("variables", {})
+			if variables:
+				for var_name, var_value in variables.items():
+					if var_name.endswith('_type'):
+						continue  # Skip type entries, we'll show them with main variables
+					var_type = variables.get(f"{var_name}_type", "unknown")
+					st.markdown(f"`{var_name}`: `{var_value}` ({var_type})")
+			else:
+				st.write("No variables")
+		
 		with cols[1]:
-			st.markdown("**Call stack**")
-			st.write(", ".join(current.get("call_stack", [])))
+			st.markdown("**📞 Call Stack**")
+			call_stack = current.get("call_stack", [])
+			if call_stack:
+				for i, func in enumerate(call_stack):
+					indent = "  " * i
+					st.write(f"{indent}→ {func}")
+			else:
+				st.write("Main execution")
+		
 		with cols[2]:
-			st.markdown("**Output**")
-			st.code(current.get("outputs", ""))
+			st.markdown("**💾 Memory State**")
+			memory_state = current.get("memory_state", {})
+			if memory_state:
+				heap = memory_state.get("heap", {})
+				stack = memory_state.get("stack", [])
+				if heap:
+					st.markdown("**Heap:**")
+					for obj_id, details in heap.items():
+						st.write(f"  {obj_id}: {details}")
+				if stack:
+					st.markdown("**Stack:**")
+					st.write(f"  {', '.join(stack)}")
+			else:
+				st.write("No memory details")
+		
+		with cols[3]:
+			st.markdown("**📤 Outputs**")
+			outputs = current.get("outputs", "")
+			if outputs:
+				st.code(outputs)
+			else:
+				st.write("No output")
+	
+	# Data Structures Visualization
+	data_structures = current.get("data_structures", {})
+	if data_structures:
+		with st.expander("🏗️ Data Structures", expanded=False):
+			for ds_name, ds_info in data_structures.items():
+				st.markdown(f"**{ds_name}:**")
+				if isinstance(ds_info, dict):
+					if "elements" in ds_info:
+						# List visualization
+						elements = ds_info.get("elements", [])
+						current_index = ds_info.get("index", 0)
+						length = ds_info.get("length", len(elements))
+						
+						# Create a visual representation
+						if elements:
+							st.markdown(f"Length: {length}, Current Index: {current_index}")
+							# Show elements with current index highlighted
+							element_display = []
+							for i, elem in enumerate(elements):
+								if i == current_index:
+									element_display.append(f"[{i}]: **{elem}** ←")
+								else:
+									element_display.append(f"[{i}]: {elem}")
+							st.write(" | ".join(element_display))
+						else:
+							st.write("Empty list")
+					
+					elif "keys" in ds_info and "values" in ds_info:
+						# Dictionary visualization
+						keys = ds_info.get("keys", [])
+						values = ds_info.get("values", [])
+						current_key = ds_info.get("current_key", "")
+						
+						st.markdown(f"Keys: {keys}")
+						st.markdown(f"Values: {values}")
+						if current_key:
+							st.markdown(f"Current Key: **{current_key}**")
+					
+					else:
+						# Generic structure
+						st.json(ds_info)
+				else:
+					st.write(ds_info)
+	
+	# Variable History (if available)
+	if current_idx > 0 and current.get("variables"):
+		with st.expander("📈 Variable Changes", expanded=False):
+			st.markdown("**Current Variables:**")
+			current_vars = current.get("variables", {})
+			if len(steps) > current_idx:
+				prev_vars = steps[current_idx - 1].get("variables", {})
+				
+				for var_name, var_value in current_vars.items():
+					if var_name.endswith('_type'):
+						continue
+					prev_value = prev_vars.get(var_name, "undefined")
+					if prev_value != var_value:
+						st.markdown(f"`{var_name}`: `{prev_value}` → `{var_value}` 🔄")
+					else:
+						st.markdown(f"`{var_name}`: `{var_value}` (unchanged)")
+			else:
+				for var_name, var_value in current_vars.items():
+					if not var_name.endswith('_type'):
+						st.markdown(f"`{var_name}`: `{var_value}`")
 
 	# Auto-advance when playing - use a placeholder for smoother updates
 	auto_placeholder = st.empty()
