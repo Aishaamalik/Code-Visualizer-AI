@@ -266,7 +266,7 @@ st.markdown("""
 # ----- Sidebar Navigation -----
 nav_choice = st.sidebar.radio(
     "Navigation",
-    options=["Home", "History"],
+    options=["Home", "History", "Debugger"],
     index=0,
     help="Switch between Home and History"
 )
@@ -305,7 +305,10 @@ if nav_choice == "History":
         st.info("No history yet. Run an analysis from Home.")
     else:
         for idx, item in enumerate(reversed(st.session_state.history), start=1):
-            title = f"{idx}. {item.get('language', 'unknown').title()} • {item.get('timestamp_readable', '')} • {item.get('num_steps', 0)} steps"
+            kind = item.get('kind', 'home')
+            kind_label = "Debugger" if kind == "debugger" else "Home"
+            badge = f"<span style='background: rgba(147, 51, 234, 0.25); color: #efe8ff; padding: 2px 8px; border-radius: 999px; border: 1px solid rgba(147, 51, 234, 0.45); font-size: 0.8rem;'>${kind_label}</span>"
+            title = f"{idx}. {item.get('language', 'unknown').title()} • {item.get('timestamp_readable', '')} • {item.get('num_steps', 0)} steps • {kind_label}"
             with st.expander(title, expanded=False):
                 st.markdown("**Summary**:")
                 st.markdown(item.get("summary", "(no summary)"))
@@ -322,6 +325,142 @@ if nav_choice == "History":
                         # Remove the matching item by id
                         st.session_state.history = [h for h in st.session_state.history if h.get("id") != item.get("id")]
                         st.rerun()
+
+    st.stop()
+
+if nav_choice == "Debugger":
+    st.markdown("""
+    <div class="header-container">
+        <h1 class="header-title">🛠️ Debugger</h1>
+        <p class="header-subtitle">Automatic error detection with clear explanations and suggested fixes</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    dbg_col1, dbg_col2 = st.columns([2, 1])
+    with dbg_col1:
+        dbg_language = st.selectbox(
+            "🔤 Programming Language (for analysis)",
+            options=["python", "javascript", "cpp", "java", "csharp", "go", "rust", "ruby"],
+            index=0,
+            help="Select language to guide error detection"
+        )
+    with dbg_col2:
+        run_debug = st.button("🔎 Scan for Issues", type="primary", use_container_width=True)
+
+    # Use the same editor content by default
+    dbg_code = st.text_area(
+        "💻 Code to Analyze",
+        value=st.session_state.code,
+        height=260,
+        placeholder="# Paste code to scan for issues",
+        help="Paste or edit code here for debugging"
+    )
+
+    # Quick local syntax checks for Python
+    quick_issues = []
+    if dbg_language == "python" and dbg_code.strip():
+        try:
+            compile(dbg_code, filename="<input>", mode="exec")
+        except SyntaxError as e:
+            quick_issues.append({
+                "type": "syntax",
+                "line": int(getattr(e, "lineno", 0) or 0),
+                "title": "Syntax error",
+                "explanation": str(e),
+                "suggestion": "Fix the syntax at the indicated line; check parentheses, colons, and indentation."
+            })
+
+    dbg_results = None
+    if run_debug and dbg_code.strip():
+        with st.spinner("Analyzing issues..."):
+            try:
+                from analyzer import analyze_errors_with_llm
+                dbg_results = analyze_errors_with_llm(dbg_code, dbg_language)
+            except Exception as e:
+                st.warning(f"Issue analysis failed: {e}")
+                dbg_results = {"issues": []}
+
+    # Merge quick issues with LLM issues
+    issues = []
+    if quick_issues:
+        issues.extend(quick_issues)
+    if dbg_results and dbg_results.get("issues"):
+        issues.extend(dbg_results["issues"])
+
+    # Save Debugger scan to history
+    if run_debug and dbg_code.strip():
+        try:
+            ts = int(time.time())
+            readable = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(ts))
+            issue_count = len(issues)
+            summary_text = f"Debugger scan: {issue_count} issue(s) detected."
+            history_item = {
+                "id": f"dbg-{ts}-{len(st.session_state.history)+1}",
+                "timestamp": ts,
+                "timestamp_readable": readable,
+                "language": dbg_language,
+                "code": dbg_code,
+                "num_steps": 0,
+                "summary": summary_text,
+                "kind": "debugger",
+                "issues": issues,
+            }
+            if dbg_results and dbg_results.get("corrected_code"):
+                history_item["corrected_code"] = dbg_results["corrected_code"]
+            st.session_state.history.append(history_item)
+        except Exception as _:
+            pass
+
+    if issues:
+        st.markdown('<h2 class="section-header">⚠️ Detected Issues</h2>', unsafe_allow_html=True)
+        for i, iss in enumerate(issues, start=1):
+            st.markdown(f"""
+            <div class="card" style="margin-bottom: 1rem;">
+                <h3 style="color: #8b5cf6; margin-bottom: 0.5rem;">{i}. {iss.get('title', 'Issue')}</h3>
+                <div style="color: #a78bfa; margin-bottom: 0.5rem;">
+                    <strong style="color:#a855f7;">Type:</strong> {iss.get('type','')}
+                    &nbsp;&nbsp;|&nbsp;&nbsp;
+                    <strong style="color:#a855f7;">Line:</strong> {iss.get('line', 0)}
+                </div>
+                <div style="margin-bottom: 0.75rem;">{iss.get('explanation','')}</div>
+                <div style="background: rgba(147, 51, 234, 0.15); padding: 0.75rem; border-radius: 8px; border-left: 4px solid #a855f7;">
+                    <strong>Suggested Fix:</strong><br/>
+                    <span style="color:#e9d5ff;">{iss.get('suggestion','')}</span>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+        # Corrected code output (if provided by LLM)
+        if dbg_results and dbg_results.get("corrected_code"):
+            corrected_code = dbg_results.get("corrected_code", "")
+            st.markdown('<h2 class="section-header">✅ Corrected Code</h2>', unsafe_allow_html=True)
+            st.code(corrected_code, language=dbg_language)
+            cc_col1, cc_col2 = st.columns([1, 1])
+            with cc_col1:
+                if st.button("↪️ Replace Editor with Corrected Code", use_container_width=True):
+                    st.session_state.code = corrected_code
+                    st.session_state.language = dbg_language
+                    st.success("Editor updated with corrected code.")
+            with cc_col2:
+                ext_map = {
+                    "python": "py",
+                    "javascript": "js",
+                    "cpp": "cpp",
+                    "java": "java",
+                    "csharp": "cs",
+                    "go": "go",
+                    "rust": "rs",
+                    "ruby": "rb",
+                }
+                file_ext = ext_map.get(dbg_language, "txt")
+                st.download_button(
+                    label="💾 Download Corrected Code",
+                    data=corrected_code,
+                    file_name=f"corrected_code.{file_ext}",
+                    mime="text/plain",
+                    use_container_width=True,
+                )
+    else:
+        st.info("No issues detected yet. Paste code and click 'Scan for Issues'.")
 
     st.stop()
 

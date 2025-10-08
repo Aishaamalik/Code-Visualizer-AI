@@ -192,3 +192,80 @@ def analyze_code_with_llm(
 		)
 	result["steps"] = normalized_steps
 	return result
+
+
+def _build_debugger_prompts(language: str, code_text: str) -> Tuple[str, str]:
+	system_prompt = (
+		"You are an expert debugging assistant. Identify syntax, runtime, and logic errors in code. "
+		"Explain the root cause in plain language and propose safe, actionable fixes. "
+		"Provide a fully corrected version of the code that applies those fixes. "
+		"Return ONLY strict JSON matching the required schema."
+	)
+	user_prompt = f"""
+Language: {language}
+Code:
+<CODE>
+{code_text}
+</CODE>
+
+Analyze potential issues WITHOUT executing the code. Provide a JSON object with this exact structure:
+{{
+  "issues": [
+    {{
+      "type": "syntax|runtime|logic|style|performance",
+      "line": 0,
+      "title": "Short human-readable title",
+      "explanation": "Clear explanation of the problem and its impact",
+      "suggestion": "Concrete fix with example code or steps"
+    }}
+  ],
+  "corrected_code": "FULL corrected code with all safe fixes applied"
+}}
+
+Rules:
+- If line cannot be determined, set line to 0.
+- Prefer minimal, safe fixes. Do NOT invent APIs. Provide targeted suggestions.
+- Use only double quotes in JSON.
+"""
+	return system_prompt, user_prompt
+
+
+def analyze_errors_with_llm(
+	code_text: str,
+	language: str,
+	model_name: str = "llama-3.1-8b-instant",
+	temperature: float = 0.1,
+	max_tokens: int = 3000,
+) -> Dict[str, Any]:
+	api_key = get_groq_api_key()
+	if not api_key:
+		raise RuntimeError("Missing GROQ_API_KEY. Set it in .env or Streamlit secrets to analyze code.")
+
+	llm = ChatGroq(
+		api_key=api_key,
+		model=model_name,
+		temperature=temperature,
+		max_tokens=max_tokens,
+	)
+
+	system_prompt, user_prompt = _build_debugger_prompts(language, code_text)
+	messages = [("system", system_prompt), ("user", user_prompt)]
+	response = llm.invoke(messages)
+	content = response.content if hasattr(response, "content") else str(response)
+
+	parsed = safe_json_loads(content)
+	issues = parsed.get("issues", []) or []
+	# Normalize shape
+	normalized: List[Dict[str, Any]] = []
+	for issue in issues:
+		normalized.append(
+			{
+				"type": str(issue.get("type", "logic")),
+				"line": int(issue.get("line", 0) or 0),
+				"title": issue.get("title", "Potential issue"),
+				"explanation": issue.get("explanation", ""),
+				"suggestion": issue.get("suggestion", ""),
+			}
+		)
+	corrected_code = parsed.get("corrected_code", "") or ""
+	return {"issues": normalized, "corrected_code": corrected_code}
