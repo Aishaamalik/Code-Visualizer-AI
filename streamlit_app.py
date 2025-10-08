@@ -266,7 +266,7 @@ st.markdown("""
 # ----- Sidebar Navigation -----
 nav_choice = st.sidebar.radio(
     "Navigation",
-    options=["Home", "History", "Debugger"],
+    options=["Home", "History", "Debugger", "Complexity"],
     index=0,
     help="Switch between Home and History"
 )
@@ -306,8 +306,12 @@ if nav_choice == "History":
     else:
         for idx, item in enumerate(reversed(st.session_state.history), start=1):
             kind = item.get('kind', 'home')
-            kind_label = "Debugger" if kind == "debugger" else "Home"
-            badge = f"<span style='background: rgba(147, 51, 234, 0.25); color: #efe8ff; padding: 2px 8px; border-radius: 999px; border: 1px solid rgba(147, 51, 234, 0.45); font-size: 0.8rem;'>${kind_label}</span>"
+            if kind == "debugger":
+                kind_label = "Debugger"
+            elif kind == "complexity":
+                kind_label = "Complexity"
+            else:
+                kind_label = "Home"
             title = f"{idx}. {item.get('language', 'unknown').title()} • {item.get('timestamp_readable', '')} • {item.get('num_steps', 0)} steps • {kind_label}"
             with st.expander(title, expanded=False):
                 st.markdown("**Summary**:")
@@ -461,6 +465,115 @@ if nav_choice == "Debugger":
                 )
     else:
         st.info("No issues detected yet. Paste code and click 'Scan for Issues'.")
+
+    st.stop()
+
+if nav_choice == "Complexity":
+    st.markdown("""
+    <div class="header-container">
+        <h1 class="header-title">🧮 Complexity Analysis</h1>
+        <p class="header-subtitle">Time and space complexity estimation with loop and recursion insights</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    cx_col1, cx_col2 = st.columns([2, 1])
+    with cx_col1:
+        cx_language = st.selectbox(
+            "🔤 Programming Language (for analysis)",
+            options=["python", "javascript", "cpp", "java", "csharp", "go", "rust", "ruby"],
+            index=0,
+            help="Select language to guide complexity analysis"
+        )
+    with cx_col2:
+        run_cx = st.button("📈 Analyze Complexity", type="primary", use_container_width=True)
+
+    cx_code = st.text_area(
+        "💻 Code to Analyze",
+        value=st.session_state.code,
+        height=260,
+        placeholder="# Paste code for complexity analysis",
+        help="Paste or edit code here for complexity estimation"
+    )
+
+    cx_results = None
+    if run_cx and cx_code.strip():
+        with st.spinner("Estimating complexity..."):
+            try:
+                from analyzer import analyze_complexity_with_llm
+                cx_results = analyze_complexity_with_llm(cx_code, cx_language)
+            except Exception as e:
+                st.warning(f"Complexity analysis failed: {e}")
+                cx_results = {"functions": []}
+
+        # Save Complexity analysis to history
+        try:
+            ts = int(time.time())
+            readable = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(ts))
+            fn_count = len((cx_results or {}).get("functions", []))
+            summary_text = f"Complexity analysis: {fn_count} function(s) analyzed."
+            history_item = {
+                "id": f"cx-{ts}-{len(st.session_state.history)+1}",
+                "timestamp": ts,
+                "timestamp_readable": readable,
+                "language": cx_language,
+                "code": cx_code,
+                "num_steps": 0,
+                "summary": summary_text,
+                "kind": "complexity",
+                "complexity": cx_results,
+            }
+            st.session_state.history.append(history_item)
+        except Exception as _:
+            pass
+
+    if cx_results and cx_results.get("functions"):
+        st.markdown('<h2 class="section-header">🧠 Function Complexities</h2>', unsafe_allow_html=True)
+        for fn in cx_results["functions"]:
+            with st.expander(f"{fn.get('name','function')} — T: {fn.get('time_complexity','O(1)')} | S: {fn.get('space_complexity','O(1)')}", expanded=False):
+                st.markdown(f"**Time Complexity**: {fn.get('time_complexity','O(1)')}")
+                st.markdown(f"**Space Complexity**: {fn.get('space_complexity','O(1)')}")
+                notes = fn.get("notes", "")
+                if notes:
+                    st.markdown(f"**Notes**: {notes}")
+                loops = fn.get("loops", [])
+                recs = fn.get("recursions", [])
+                if loops:
+                    st.markdown("**Loops:**")
+                    for lp in loops:
+                        st.markdown(f"- {lp.get('location','')} → {lp.get('complexity','')} — {lp.get('explanation','')}")
+                if recs:
+                    st.markdown("**Recursions:**")
+                    for rc in recs:
+                        st.markdown(f"- {rc.get('location','')} → {rc.get('recurrence','')} ⇒ {rc.get('solution','')}")
+
+                # Simple Big-O growth visualization
+                import math
+                import pandas as pd
+                import numpy as np
+                chart_cols = st.columns([1])
+                with chart_cols[0]:
+                    st.markdown("**Big-O Growth (illustrative)**")
+                    n_vals = np.array([1, 2, 4, 8, 16, 32, 64])
+                    curves = {
+                        "O(1)": np.ones_like(n_vals),
+                        "O(log n)": np.log2(n_vals),
+                        "O(n)": n_vals,
+                        "O(n log n)": n_vals * np.log2(n_vals),
+                        "O(n^2)": n_vals ** 2,
+                        "O(2^n)": 2 ** n_vals
+                    }
+                    # Choose the reported time complexity curve if present
+                    tc = fn.get("time_complexity", "O(1)").replace(" ", "")
+                    key_map = {"O(1)":"O(1)", "O(logn)":"O(log n)", "O(n)":"O(n)", "O(nlogn)":"O(n log n)", "O(n^2)":"O(n^2)", "O(2^n)":"O(2^n)"}
+                    chosen = key_map.get(tc, fn.get("time_complexity", "O(1)"))
+                    data = pd.DataFrame({
+                        "n": n_vals,
+                        "growth": curves.get(chosen, curves["O(1)"])
+                    })
+                    st.line_chart(data.set_index("n"))
+
+    elif run_cx:
+        st.info("No functions detected for complexity analysis. Paste code and try again.")
 
     st.stop()
 

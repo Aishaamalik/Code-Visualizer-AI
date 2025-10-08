@@ -269,3 +269,77 @@ def analyze_errors_with_llm(
 		)
 	corrected_code = parsed.get("corrected_code", "") or ""
 	return {"issues": normalized, "corrected_code": corrected_code}
+
+
+def _build_complexity_prompts(language: str, code_text: str) -> Tuple[str, str]:
+	system_prompt = (
+		"You are an algorithms and complexity expert. Estimate precise time and space complexity for functions. "
+		"Identify dominant terms and provide Big-O, with notes on best/average/worst if relevant. "
+		"Detect loops and recursion, and model their growth. Return ONLY strict JSON."
+	)
+	user_prompt = f"""
+Language: {language}
+Code:
+<CODE>
+{code_text}
+</CODE>
+
+Provide complexity analysis as JSON with this exact structure:
+{{
+  "functions": [
+    {{
+      "name": "function_name",
+      "time_complexity": "O(n log n)",
+      "space_complexity": "O(n)",
+      "notes": "Short justification and dominant factors",
+      "loops": [{{"location": "line 23", "complexity": "O(n)", "explanation": "for loop over n items"}}],
+      "recursions": [{{"location": "line 45", "recurrence": "T(n)=2T(n/2)+n", "solution": "O(n log n)"}}]
+    }}
+  ]
+}}
+
+Rules:
+- If names are unknown, infer reasonable names like "main".
+- Use only double quotes in JSON.
+"""
+	return system_prompt, user_prompt
+
+
+def analyze_complexity_with_llm(
+	code_text: str,
+	language: str,
+	model_name: str = "llama-3.1-8b-instant",
+	temperature: float = 0.1,
+	max_tokens: int = 3500,
+) -> Dict[str, Any]:
+	api_key = get_groq_api_key()
+	if not api_key:
+		raise RuntimeError("Missing GROQ_API_KEY. Set it in .env or Streamlit secrets to analyze code.")
+
+	llm = ChatGroq(
+		api_key=api_key,
+		model=model_name,
+		temperature=temperature,
+		max_tokens=max_tokens,
+	)
+
+	system_prompt, user_prompt = _build_complexity_prompts(language, code_text)
+	messages = [("system", system_prompt), ("user", user_prompt)]
+	response = llm.invoke(messages)
+	content = response.content if hasattr(response, "content") else str(response)
+
+	parsed = safe_json_loads(content)
+	functions = parsed.get("functions", []) or []
+	normalized: List[Dict[str, Any]] = []
+	for fn in functions:
+		normalized.append(
+			{
+				"name": fn.get("name", "main"),
+				"time_complexity": fn.get("time_complexity", "O(1)"),
+				"space_complexity": fn.get("space_complexity", "O(1)"),
+				"notes": fn.get("notes", ""),
+				"loops": fn.get("loops", []),
+				"recursions": fn.get("recursions", []),
+			}
+		)
+	return {"functions": normalized}
