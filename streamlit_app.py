@@ -169,6 +169,100 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
+# Set background image and shared CSS early so all views (Home/History) inherit theme
+bg_loaded = set_bg_with_overlay("pic.jpg", overlay_rgba="rgba(0,0,0,0.4)")
+
+# Custom CSS for modern styling with background image
+st.markdown("""
+<style>
+    /* Main container styling */
+    .main .block-container {
+        padding-top: 2rem;
+        padding-bottom: 2rem;
+        max-width: 1200px;
+        background: rgba(147, 51, 234, 0.1);
+        border-radius: 20px;
+        backdrop-filter: blur(20px);
+        box-shadow: 0 20px 40px rgba(147, 51, 234, 0.3);
+        border: 1px solid rgba(147, 51, 234, 0.3);
+    }
+    
+    /* Header styling */
+    .header-container {
+        background: rgba(147, 51, 234, 0.9);
+        backdrop-filter: blur(20px);
+        padding: 2rem;
+        border-radius: 20px;
+        margin-bottom: 2rem;
+        color: white;
+        text-align: center;
+        box-shadow: 0 10px 30px rgba(147, 51, 234, 0.4);
+        border: 1px solid rgba(147, 51, 234, 0.4);
+    }
+    
+    .header-title {
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+    }
+    
+    .header-subtitle {
+        font-size: 1.1rem;
+        opacity: 0.95;
+        margin-bottom: 0;
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+    }
+
+    /* Sidebar styling to match theme */
+    [data-testid="stSidebar"] {
+        background: linear-gradient(
+            180deg,
+            rgba(147, 51, 234, 0.25) 0%,
+            rgba(124, 58, 237, 0.25) 100%
+        ) !important;
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border-right: 1px solid rgba(147, 51, 234, 0.35);
+        box-shadow: 10px 0 30px rgba(147, 51, 234, 0.25);
+    }
+    [data-testid="stSidebar"] .block-container {
+        padding-top: 1.25rem;
+    }
+    [data-testid="stSidebar"] *::selection {
+        background: rgba(168, 85, 247, 0.35);
+        color: #ffffff;
+    }
+    
+    /* Sidebar radio styling */
+    [data-testid="stSidebar"] .stRadio > label {
+        color: #efe8ff;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.02em;
+    }
+    [data-testid="stSidebar"] .stRadio div[role="radiogroup"] label {
+        background: rgba(147, 51, 234, 0.15);
+        border: 1px solid rgba(147, 51, 234, 0.35);
+        color: #f3e8ff;
+        padding: 0.5rem 0.75rem;
+        border-radius: 10px;
+        margin-bottom: 0.4rem;
+        box-shadow: inset 0 0 0 1px rgba(255,255,255,0.05);
+    }
+    [data-testid="stSidebar"] .stRadio div[role="radiogroup"] label:hover {
+        background: rgba(168, 85, 247, 0.25);
+        border-color: rgba(168, 85, 247, 0.55);
+    }
+    [data-testid="stSidebar"] .stRadio div[role="radiogroup"] input:checked + div + label,
+    [data-testid="stSidebar"] .stRadio div[role="radiogroup"] input[checked] + div + label {
+        background: rgba(168, 85, 247, 0.35) !important;
+        border-color: rgba(168, 85, 247, 0.75) !important;
+        box-shadow: 0 6px 18px rgba(168, 85, 247, 0.25);
+    }
+</style>
+""", unsafe_allow_html=True)
+
 # ----- Sidebar Navigation -----
 nav_choice = st.sidebar.radio(
     "Navigation",
@@ -231,52 +325,6 @@ if nav_choice == "History":
 
     st.stop()
 
-# Set background image
-bg_loaded = set_bg_with_overlay("pic.jpg", overlay_rgba="rgba(0,0,0,0.4)")
-
-# Custom CSS for modern styling with background image
-st.markdown("""
-<style>
-    /* Main container styling */
-    .main .block-container {
-        padding-top: 2rem;
-        padding-bottom: 2rem;
-        max-width: 1200px;
-        background: rgba(147, 51, 234, 0.1);
-        border-radius: 20px;
-        backdrop-filter: blur(20px);
-        box-shadow: 0 20px 40px rgba(147, 51, 234, 0.3);
-        border: 1px solid rgba(147, 51, 234, 0.3);
-    }
-    
-    /* Header styling */
-    .header-container {
-        background: rgba(147, 51, 234, 0.9);
-        backdrop-filter: blur(20px);
-        padding: 2rem;
-        border-radius: 20px;
-        margin-bottom: 2rem;
-        color: white;
-        text-align: center;
-        box-shadow: 0 10px 30px rgba(147, 51, 234, 0.4);
-        border: 1px solid rgba(147, 51, 234, 0.4);
-    }
-    
-    .header-title {
-        font-size: 2.5rem;
-        font-weight: 700;
-        margin-bottom: 0.5rem;
-        text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
-    }
-    
-    .header-subtitle {
-        font-size: 1.1rem;
-        opacity: 0.95;
-        margin-bottom: 0;
-        text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
-    }
-</style>
-""", unsafe_allow_html=True)
 
 # Header section
 st.markdown("""
