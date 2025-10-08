@@ -83,6 +83,8 @@ if "last_tick" not in st.session_state:
     st.session_state.last_tick = time.time()
 if "autoplay_interval" not in st.session_state:
     st.session_state.autoplay_interval = 3.0
+if "history" not in st.session_state:
+    st.session_state.history = []  # type: List[Dict[str, Any]]
 
 
 # ----- Utility Functions -----
@@ -166,6 +168,68 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="collapsed"
 )
+
+# ----- Sidebar Navigation -----
+nav_choice = st.sidebar.radio(
+    "Navigation",
+    options=["Home", "History"],
+    index=0,
+    help="Switch between Home and History"
+)
+
+if nav_choice == "History":
+    st.markdown("""
+    <div class="header-container">
+        <h1 class="header-title">🕘 History</h1>
+        <p class="header-subtitle">Review past analyses without modifying the Home screen</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    col_hist_actions_1, col_hist_actions_2 = st.columns([1, 1])
+    with col_hist_actions_1:
+        clear_clicked = st.button("🗑️ Clear History", use_container_width=True, help="Remove all history entries")
+    with col_hist_actions_2:
+        export_clicked = st.button("💾 Export History (JSON)", use_container_width=True, help="Download your history as JSON")
+
+    if clear_clicked:
+        st.session_state.history = []
+        st.success("History cleared.")
+
+    if export_clicked:
+        try:
+            history_json = json.dumps(st.session_state.history, indent=2)
+            st.download_button(
+                label="Download history.json",
+                data=history_json,
+                file_name="history.json",
+                mime="application/json",
+            )
+        except Exception as _:
+            st.warning("Unable to export history.")
+
+    if not st.session_state.history:
+        st.info("No history yet. Run an analysis from Home.")
+    else:
+        for idx, item in enumerate(reversed(st.session_state.history), start=1):
+            title = f"{idx}. {item.get('language', 'unknown').title()} • {item.get('timestamp_readable', '')} • {item.get('num_steps', 0)} steps"
+            with st.expander(title, expanded=False):
+                st.markdown("**Summary**:")
+                st.markdown(item.get("summary", "(no summary)"))
+                st.markdown("**Code**:")
+                st.code(item.get("code", ""), language=item.get("language", "python"))
+                cols = st.columns([1, 1])
+                with cols[0]:
+                    if st.button("↩️ Load to Editor", key=f"load_{item.get('id','')}"):
+                        st.session_state.code = item.get("code", "")
+                        st.session_state.language = item.get("language", "python")
+                        st.success("Loaded to editor. Switch to Home to view.")
+                with cols[1]:
+                    if st.button("❌ Delete Entry", key=f"del_{item.get('id','')}"):
+                        # Remove the matching item by id
+                        st.session_state.history = [h for h in st.session_state.history if h.get("id") != item.get("id")]
+                        st.rerun()
+
+    st.stop()
 
 # Set background image
 bg_loaded = set_bg_with_overlay("pic.jpg", overlay_rgba="rgba(0,0,0,0.4)")
@@ -283,6 +347,24 @@ if analyze_clicked:
             st.session_state.steps = analysis.get("steps", [])
             st.session_state.current_step = 0
             st.session_state.playing = False
+
+            # Append to history
+            try:
+                ts = int(time.time())
+                readable = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(ts))
+                summary_text = analysis.get("summary", "")
+                history_item = {
+                    "id": f"{ts}-{len(st.session_state.history)+1}",
+                    "timestamp": ts,
+                    "timestamp_readable": readable,
+                    "language": st.session_state.language,
+                    "code": st.session_state.code,
+                    "num_steps": len(st.session_state.steps),
+                    "summary": summary_text,
+                }
+                st.session_state.history.append(history_item)
+            except Exception as _:
+                pass
 
             # Success message with better styling
             st.markdown("""
